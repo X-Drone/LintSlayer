@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: backend/
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/wolf_auth
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=wolf_auth
+    ports:
+      - "5432:10000"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
