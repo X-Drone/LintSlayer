@@ -14,7 +14,7 @@ from pathlib import Path
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=settings.auth_url+"login")
 
 def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
-    user = container.verify_user_token_uc(token)
+    user = container.verify_user_token_uc()(token)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return user
@@ -29,7 +29,7 @@ class ProjectsResponse(Schema):
 
 @router.get("/", response_model=ProjectsResponse)
 def get_projects(user: Annotated[str, Depends(get_current_user)]):
-    projects: list[Project] = container.project_service.get_user_projects(user)
+    projects: list[Project] = container.get_project_service().get_user_projects(user)
     return ProjectsResponse(
         names=[project.name for project in projects]
     )
@@ -60,12 +60,14 @@ def create_project(user: Annotated[str, Depends(get_current_user)], req: Project
         raise HTTPException(status_code=400, detail="Either repo_url or (content + ext) must be provided")
     
     try:
-        project = container.project_service.create_project(user, req.name, repo)
+        project = container.get_project_service().create_project(user, req.name, repo)
+        base_dir = container.repo_manager.getBaseTempDir()
+        files = [str(file).replace(str(base_dir / user), '').lstrip('/\\') for file in container.project_domain_service.getProjectFiles(project)]
         return ProjectResponse(
             id=project.id,
             name=project.name,
             owner=project.owner,
-            files=[str(file) for file in container.project_domain_service.getProjectFiles(project)]
+            files=files
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -80,18 +82,20 @@ class ProjectDetailResponse(Schema):
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 def get_project(project_id: int, user: Annotated[str, Depends(get_current_user)]):
-    project = container.project_service.get_project(project_id)
+    project = container.get_project_service().get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
     if project.owner != user:
         raise HTTPException(status_code=403, detail="Forbidden")
     
+    base_dir = container.repo_manager.getBaseTempDir()
+    files = [str(file).replace(str(base_dir / user), '').lstrip('/\\') for file in container.project_domain_service.getProjectFiles(project)]
     return ProjectDetailResponse(
         id=project.id,
         name=project.name,
         owner=project.owner,
-        files=[str(file) for file in container.project_domain_service.getProjectFiles(project)]
+        files=files
     )
 
 
@@ -103,8 +107,8 @@ class AnalysisRunResponse(Schema):
 
 
 @router.post("/{project_id}/analyse")
-def run_analyse(project_id: int, user: Annotated[str, Depends(get_current_user)]):
-    project = container.project_service.get_project(project_id)
+def run_analyse(project_id: int, analysers: list[str], user: Annotated[str, Depends(get_current_user)]):
+    project = container.get_project_service().get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -112,7 +116,7 @@ def run_analyse(project_id: int, user: Annotated[str, Depends(get_current_user)]
         raise HTTPException(status_code=403, detail="Forbidden")
     
     try:
-        run = container.analysis_run_service.startAnalysis(project_id, project)
+        run = container.get_analysis_run_service().startAnalysis(project_id, project, [analyser.lower() for analyser in analysers])
         return AnalysisRunResponse(
             id=run.id,
             project_id=run.project_id,
@@ -125,14 +129,14 @@ def run_analyse(project_id: int, user: Annotated[str, Depends(get_current_user)]
 
 @router.get("/{project_id}/analyses", response_model=list[AnalysisRunResponse])
 def get_analyses(project_id: int, user: Annotated[str, Depends(get_current_user)]):
-    project = container.project_service.get_project(project_id)
+    project = container.get_project_service().get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
     if project.owner != user:
         raise HTTPException(status_code=403, detail="Forbidden")
     
-    runs = container.analysis_run_service.getProjectAnalyses(project_id)
+    runs = container.get_analysis_run_service().getProjectAnalyses(project_id)
     return [
         AnalysisRunResponse(
             id=run.id,
@@ -163,22 +167,21 @@ class AnalysisDetailResponse(Schema):
 
 @router.get("/{project_id}/analyses/{run_id}", response_model=AnalysisDetailResponse)
 def get_analyse(project_id: int, run_id: int, user: Annotated[str, Depends(get_current_user)]):
-    project = container.project_service.get_project(project_id)
+    project = container.get_project_service().get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
     if project.owner != user:
         raise HTTPException(status_code=403, detail="Forbidden")
     
-    run = container.analysis_run_service.getAnalysisRun(run_id)
+    run = container.get_analysis_run_service().getAnalysisRun(run_id)
     if not run or run.project_id != project_id:
         raise HTTPException(status_code=404, detail="Analysis run not found")
     
     # Get issues for this run
-    # TODO: make get_analysis_run_issues_uc
-    with container.uow:
-        issues = container.uow.issues.getAnalysisRunIssues(run_id)
+    issues = container.get_analysis_run_issues_uc()(run_id)
     
+    base_dir = container.repo_manager.getBaseTempDir()
     return AnalysisDetailResponse(
         id=run.id,
         project_id=run.project_id,
@@ -187,7 +190,7 @@ def get_analyse(project_id: int, run_id: int, user: Annotated[str, Depends(get_c
         issues=[
             IssueResponse(
                 id=issue.id,
-                file_path=str(issue.file_path),
+                file_path=str(issue.file_path).replace(str(base_dir / user), '').lstrip('/\\'),
                 line_start=issue.line_start,
                 line_end=issue.line_end,
                 severity=issue.severity.name,
@@ -200,7 +203,7 @@ def get_analyse(project_id: int, run_id: int, user: Annotated[str, Depends(get_c
 
 @router.delete("/{project_id}")
 def delete_project(project_id: int, user: Annotated[str, Depends(get_current_user)]):
-    project = container.project_service.get_project(project_id)
+    project = container.get_project_service().get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -208,7 +211,7 @@ def delete_project(project_id: int, user: Annotated[str, Depends(get_current_use
         raise HTTPException(status_code=403, detail="Forbidden")
     
     try:
-        container.project_service.delete_project(project_id)
+        container.get_project_service().delete_project(project_id)
         return {"status": "Project deleted"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

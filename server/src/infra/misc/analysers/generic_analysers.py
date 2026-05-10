@@ -12,8 +12,8 @@ from .base import BaseAnalyser
 class RegexPatternAnalyser(BaseAnalyser):
     """Базовый анализатор на основе паттернов для простого анализа кода"""
     
-    ext = ".unknown"
-    name = "pattern-analyzer"
+    ext = "any"
+    name = "Regex Patterns"
     
     # Паттерны для обнаружения проблем
     PATTERNS = {
@@ -58,8 +58,8 @@ class RegexPatternAnalyser(BaseAnalyser):
 class SecurityAnalyser(BaseAnalyser):
     """Анализатор для обнаружения потенциальных проблем безопасности"""
     
-    ext = ".any"
-    name = "security-analyzer"
+    ext = "any"
+    name = "Security"
     
     # Вредоносные паттерны
     SECURITY_PATTERNS = {
@@ -131,7 +131,7 @@ class ComplexityAnalyser(BaseAnalyser):
     """Анализатор для обнаружения сложного кода"""
     
     ext = ".py"
-    name = "complexity-analyzer"
+    name = "Complexity"
     
     def _run_linter(self, file_path: str) -> str:
         """Читает содержимое файла"""

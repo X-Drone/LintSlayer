@@ -12,4 +12,6 @@ class ProjectService:
 
     def getProjectFiles(self, project: Project) -> list[Path]:
         """Получает все файлы в проекте"""
+        if project.repo_path.is_file():
+            return [project.repo_path]
         return [f for f in project.repo_path.rglob('*') if f.is_file()]

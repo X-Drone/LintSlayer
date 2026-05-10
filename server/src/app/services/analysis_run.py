@@ -19,7 +19,7 @@ class AnalysisRunService:
         self.uow = uow
 
 
-    def startAnalysis(self, project_id: int, project: Project) -> AnalysisRun:
+    def startAnalysis(self, project_id: int, project: Project, analysers: list[str]) -> AnalysisRun:
         """Запускает анализ проекта"""
         analyse_callback, run = self.start_analysis_uc(project_id)
         
@@ -34,7 +34,9 @@ class AnalysisRunService:
                 #     except Exception as e:
                 #         print(f"Error reading file {file_path}: {e}")
                 # Поэтому засунем туда путь
-                analyse_callback(file_path.suffix, str(file_path))
+                analyse_callback(file_path.suffix, str(file_path), analysers)
+        
+        self.start_analysis_uc.saveRun(run)
         
         return run
 

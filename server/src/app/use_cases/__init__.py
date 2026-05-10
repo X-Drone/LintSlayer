@@ -3,6 +3,7 @@ from .start_analysis import StartAnalysisUseCase
 from .project_operations import GetUserProjectsUseCase, DeleteProjectUseCase
 from .get_project import GetProjectUseCase
 from .verify_user_token import VerifyUserTokenUseCase
+from .get_analysis_run_issues import GetAnalysisRunIssuesUseCase
 
 __all__ = [
     "CreateProjectUseCase",
@@ -11,4 +12,5 @@ __all__ = [
     "DeleteProjectUseCase",
     "GetProjectUseCase",
     "VerifyUserTokenUseCase",
+    "GetAnalysisRunIssuesUseCase",
 ]

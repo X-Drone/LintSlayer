@@ -68,13 +68,13 @@ class AnalysisRunRepo(IAnalysisRunRepo):
         model.status = run.status.value
         model.timestamp = run.timestamp
 
-        self.session.merge(model)
+        # self.session.merge(model)
 
     def getProjectRuns(self, project_id: int) -> list[AnalysisRun]:
         models = (
             self.session.query(AnalysisRunModel)
             .filter(AnalysisRunModel.project_id == project_id)
-            .order_by(AnalysisRunModel.id.desc())
+            # .order_by(AnalysisRunModel.id.desc())
             .all()
         )
 

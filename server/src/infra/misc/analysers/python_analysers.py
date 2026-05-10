@@ -62,58 +62,64 @@ class PylintAnalyser(BaseAnalyser):
 
 
 class Flake8Analyser(BaseAnalyser):
-    """Анализатор кода Python используя Flake8"""
+    """Анализатор кода Python через flake8"""
     
     ext = ".py"
     name = "flake8"
-    
+
+    SEPARATOR = "|||"
+
     def _run_linter(self, file_path: str) -> str:
-        """Запускает flake8"""
+        """Запускает flake8 с кастомным форматом"""
         command = [
             "flake8",
-            "--format=json",
+            f"--format=%(path)s{self.SEPARATOR}%(row)d{self.SEPARATOR}%(col)d{self.SEPARATOR}%(code)s{self.SEPARATOR}%(text)s",
             file_path,
         ]
         return self._run_command(command)
-    
+
     def _parse_output(self, output: str, file_path: str) -> List[Issue]:
-        """Парсит JSON вывод flake8"""
-        issues = []
-        
-        try:
-            if not output.strip():
-                return issues
-            
-            data = json.loads(output)
-            
-            for item in data:
-                try:
-                    # Flake8 коды: E = Error, W = Warning, F = Fatal
-                    code = item.get("code", "E")
-                    if code.startswith("E"):
-                        severity = Severity.ERR
-                    elif code.startswith("F"):
-                        severity = Severity.CRIT
-                    else:
-                        severity = Severity.WARN
-                    
-                    issue = Issue(
-                        id=None,
-                        run_id=None,
-                        file_path=file_path,
-                        line_start=item.get("line_number", 0),
-                        line_end=item.get("line_number", 0),
-                        severity=severity,
-                        message=f"[{item.get('code', 'unknown')}] {item.get('text', '')}",
-                    )
-                    issues.append(issue)
-                except Exception as e:
-                    print(f"Error parsing flake8 item: {e}")
+        """Парсит вывод flake8"""
+        issues: List[Issue] = []
+
+        if not output.strip():
+            return issues
+
+        for line in output.splitlines():
+            try:
+                parts = line.split(self.SEPARATOR)
+
+                # защита от мусора
+                if len(parts) != 5:
                     continue
-        
-        except json.JSONDecodeError:
-            print(f"Failed to parse flake8 output as JSON")
-        
+
+                path, row, col, code, text = parts
+
+                # --- severity mapping ---
+                if code.startswith("F"):
+                    severity = Severity.CRIT
+                elif code.startswith("E"):
+                    severity = Severity.ERR
+                else:
+                    severity = Severity.WARN
+
+                issue = Issue(
+                    id=None,
+                    run_id=None,
+                    file_path=path or file_path,
+                    line_start=int(row),
+                    line_end=int(row),
+                    severity=severity,
+                    message=f"[{code}] {text}",
+                )
+
+                issues.append(issue)
+
+            except Exception as e:
+                # не убиваем весь анализ из-за одной строки
+                print(f"Flake8 parse error: {e} | line: {line}")
+                continue
+
         return issues
 
 

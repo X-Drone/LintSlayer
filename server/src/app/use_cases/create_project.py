@@ -7,7 +7,7 @@ from ..dtos import RepoSource
 
 
 class ICreateProjectUseCase(Protocol):
-    def __call__(self, owner: str, repo: RepoSource) -> Project:
+    def __call__(self, owner: str, name: str, repo: RepoSource) -> Project:
         ...
 
 
@@ -23,7 +23,7 @@ class CreateProjectUseCase:
 
     def __call__(self, owner: str, name: str, repo: RepoSource) -> Project:
         """Создает новый проект по заданному источнику кода"""
-        repo_path: Path = self._resolveRepo(repo)
+        repo_path: Path = self._resolveRepo(owner, name, repo)
         
         with self.uow:
             # Используем фабрику domain entity
@@ -33,17 +33,17 @@ class CreateProjectUseCase:
         return project
 
 
-    def _resolveRepo(self, repo: RepoSource) -> Path:
+    def _resolveRepo(self, owner: str, name: str, repo: RepoSource) -> Path:
         """Резолвит источник репозитория в путь"""
         from app.dtos import RepoFromUrl, RepoFromPath, RepoFromText
         
         if isinstance(repo, RepoFromUrl):
-            return self.repo_manager.downloadRepo(repo.url, 15)
+            return self.repo_manager.downloadRepo(owner, name, repo.url, 15)
         
         if isinstance(repo, RepoFromPath):
             return repo.path
         
         if isinstance(repo, RepoFromText):
-            return self.repo_manager.saveTempFile(repo.ext, repo.content)
+            return self.repo_manager.saveTempFile(owner, name, repo.ext, repo.content)
         
         raise ValueError(f"Unsupported repo source: {type(repo)}")

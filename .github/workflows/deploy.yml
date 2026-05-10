@@ -23,8 +23,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
         working-directory: ./client
+      
+      - name: Setup .env for frontend
+        run: |
+          echo "VITE_BACKEND_URL=${{ secrets.BACKEND_URL }}" > ./client/.env.production
+          echo "VITE_AUTH_URL_CLIENT=${{ secrets.AUTH_URL_CLIENT }}" >> ./client/.env.production
+          echo "VITE_AUTH_URL_SERVER=${{ secrets.AUTH_URL_SERVER }}" >> ./client/.env.production
 
-      - name: Build with Webpack
+      - name: Build with Vite
         run: npm run build
         working-directory: ./client
 
@@ -53,8 +59,20 @@ jobs:
           target: "/volume1/web/lint_slayer/"
           rm: true
           overwrite: true
+        
+      - name: Setup .env for backend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "DEBUG=false" >> /volume1/web/lint_slayer/server/.env
+            echo "AUTH_URL=${{ secrets.AUTH_URL_SERVER }}" >> /volume1/web/lint_slayer/server/.env
+            echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/lint_slayer" >> /volume1/web/lint_slayer/server/.env
 
-      - name: Setup and start backend
+      - name: Restart backend
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}

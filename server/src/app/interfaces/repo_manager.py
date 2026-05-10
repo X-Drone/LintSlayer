@@ -4,11 +4,14 @@ from pathlib import Path
 
 class IRepoManager(ABC):
     @abstractmethod
-    def downloadRepo(self, repo_url: str, timeout: int) -> Path: ...
+    def getBaseTempDir(self) -> Path: ...
+
+    @abstractmethod
+    def downloadRepo(self, owner: str, name: str, repo_url: str, timeout: int) -> Path: ...
 
 
     @abstractmethod
-    def saveTempFile(self, ext: str, content: str) -> Path: ...
+    def saveTempFile(self, owner: str, name: str, ext: str, content: str) -> Path: ...
 
 
     @abstractmethod

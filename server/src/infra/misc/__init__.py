@@ -15,7 +15,7 @@ auth_client = AuthClient(settings.auth_url) # get url from settings
 repo_manager = RepoManager() # get path from settings
 uow = UnitOfWork(db.getSession)
 
-container = ServiceContainer(uow, repo_manager, auth_client, get_all_analysers())
+container = ServiceContainer(lambda: UnitOfWork(db.getSession), repo_manager, auth_client, get_all_analysers())
 
 
 __all__ = [

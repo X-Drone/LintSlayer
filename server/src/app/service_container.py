@@ -3,7 +3,7 @@ Container для инициализации всех компонентов пр
 Централизованное место для создания экземпляров всех сервисов с их зависимостями.
 """
 
-from typing import Protocol
+from typing import Callable, Protocol
 from domain.services import AnalysisService, ProjectService as ProjectDomainService
 from app.use_cases import (
     CreateProjectUseCase,
@@ -12,6 +12,7 @@ from app.use_cases import (
     DeleteProjectUseCase,
     GetProjectUseCase,
     VerifyUserTokenUseCase,
+    GetAnalysisRunIssuesUseCase,
 )
 from app.services import (
     ProjectService,
@@ -45,11 +46,11 @@ class ServiceContainer:
     """DI контейнер для регистрации и инициализации всех сервисов"""
     
     def __init__(self,
-                 uow: IUnitOfWork,
+                 uow_factory: Callable[[], IUnitOfWork],
                  repo_manager: IRepoManager,
                  auth_client: IAuthClient,
                  analysers: list[IAnalyser]):
-        self.uow = uow
+        self.uow_factory = uow_factory
         self.repo_manager = repo_manager
         self.auth_client = auth_client
         self.analysers = analysers
@@ -65,62 +66,66 @@ class ServiceContainer:
         self.project_domain_service = ProjectDomainService()
         
         # Use Cases
-        self.create_project_uc = CreateProjectUseCase(
+        self.create_project_uc = lambda: CreateProjectUseCase(
             repo_manager=self.repo_manager,
-            uow=self.uow
+            uow=self.uow_factory()
         )
         
-        self.start_analysis_uc = StartAnalysisUseCase(
+        self.start_analysis_uc = lambda: StartAnalysisUseCase(
             analysers=self.analysers,
             analysis_service=self.analysis_domain_service,
-            uow=self.uow
+            uow=self.uow_factory()
         )
         
-        self.get_user_projects_uc = GetUserProjectsUseCase(
-            uow=self.uow
+        self.get_user_projects_uc = lambda: GetUserProjectsUseCase(
+            uow=self.uow_factory()
         )
         
-        self.delete_project_uc = DeleteProjectUseCase(
+        self.delete_project_uc = lambda: DeleteProjectUseCase(
             repo_manager=self.repo_manager,
-            uow=self.uow
+            uow=self.uow_factory()
         )
         
-        self.get_project_uc = GetProjectUseCase(
-            uow=self.uow
+        self.get_project_uc = lambda: GetProjectUseCase(
+            uow=self.uow_factory()
+        )
+
+        self.get_analysis_run_issues_uc = lambda: GetAnalysisRunIssuesUseCase(
+            uow=self.uow_factory()
         )
         
-        self.verify_user_token_uc = VerifyUserTokenUseCase(
+        self.verify_user_token_uc = lambda: VerifyUserTokenUseCase(
             auth_client=self.auth_client
         )
         
         # Application Services (Координаторы)
-        self.project_service = ProjectService(
-            create_project_uc=self.create_project_uc,
-            delete_project_uc=self.delete_project_uc,
+        self.project_service = lambda: ProjectService(
+            create_project_uc=self.create_project_uc(),
+            delete_project_uc=self.delete_project_uc(),
             domain_service=self.project_domain_service,
-            uow=self.uow
+            uow=self.uow_factory()
         )
         
-        self.analysis_run_service = AnalysisRunService(
-            start_analysis_uc=self.start_analysis_uc,
+        self.analysis_run_service = lambda: AnalysisRunService(
+            start_analysis_uc=self.start_analysis_uc(),
             domain_service=self.analysis_domain_service,
-            uow=self.uow
+            uow=self.uow_factory()
         )
         
-        self.verify_user_service = VerifyUserService(
+        self.verify_user_service = lambda: VerifyUserService(
             auth_client=self.auth_client,
-            uow=self.uow
+            uow=self.uow_factory()
         )
     
     # Expose API для удобного доступа
     def get_project_service(self) -> ProjectService:
-        return self.project_service
+        return self.project_service()
     
     def get_analysis_run_service(self) -> AnalysisRunService:
-        return self.analysis_run_service
+        return self.analysis_run_service()
     
     def get_verify_user_service(self) -> VerifyUserService:
-        return self.verify_user_service
+        return self.verify_user_service()
 
 
 # Пример использования:

@@ -4,19 +4,15 @@
   "main": "index.js",
   "scripts": {
     "install-client": "npm --prefix client install",
-
     "install-server": "node server/scripts/install-backend.js",
     "install-all": "npm run install-client && npm run install-server",
-
     "client": "npm --prefix client start",
     "server": "node server/scripts/start-backend.js",
-
-    "dev": "concurrently -n CLIENT,BACKEND -c cyan,green --kill-others --kill-others-on-fail \"npm run client\" \"npm run server\"",
-
+    "dev-client": "npm --prefix client run dev",
+    "dev": "concurrently -n CLIENT,BACKEND -c cyan,green --kill-others --kill-others-on-fail \"npm run dev-client\" \"npm run server\"",
     "build-client": "npm --prefix client run build",
     "build-server": "cd server && docker-compose build",
     "build": "concurrently -n CLIENT,SERVER -c blue,magenta \"npm run build-client\" \"npm run build-server\"",
-
     "start": "cd server && docker-compose down && docker-compose up"
   },
   "repository": {

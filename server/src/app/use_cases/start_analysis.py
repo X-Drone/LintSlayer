@@ -22,7 +22,7 @@ class StartAnalysisUseCase:
         self.uow = uow
 
 
-    def __call__(self, project_id: int) -> tuple[Callable[[str, str], None], AnalysisRun]:
+    def __call__(self, project_id: int) -> tuple[Callable[[str, str, list[str]], None], AnalysisRun]:
         """Запускает анализ проекта и возвращает callback для анализа файлов и объект run"""
         with self.uow:
             # Создаем новый run через domain service
@@ -30,27 +30,37 @@ class StartAnalysisUseCase:
             self.uow.runs.add(run)
         
         # Создаем closure, который захватывает run
-        def analyse_file_handler(ext: str, path: str) -> None:
+        def analyse_file_handler(ext: str, path: str, aviable_analysers: list[str]) -> None:
             # Находим подходящий анализатор
-            analyser = self._findAnalyser(ext)
-            if not analyser:
-                return
+            analysers = self._findAnalysers(ext)
             
             # Запускаем анализ с callback'ом, который захватывает run
             def on_analysis_complete(issues):
                 self._onAnalysisComplete(run, issues)
             
-            analyser.analyse(path, on_analysis_complete)
+            for analyser in analysers:
+                if analyser and analyser.name in aviable_analysers:
+                    analyser.analyse(path, on_analysis_complete)
         
         return analyse_file_handler, run
+    
+
+    def saveRun(self, run: AnalysisRun):
+        with self.uow:
+            # Обновляем статус run через domain service
+            self.analysis_service.completeRun(run)
+            
+            # Сохраняем изменения в БД
+            self.uow.runs.update(run)
 
 
-    def _findAnalyser(self, ext: str) -> IAnalyser | None:
+    def _findAnalysers(self, ext: str) -> list[IAnalyser]:
         """Находит подходящий анализатор по расширению"""
+        analysers: list[IAnalyser] = []
         for analyser in self.analysers:
-            if hasattr(analyser, 'ext') and ext == analyser.ext:
-                return analyser
-        return None
+            if hasattr(analyser, 'ext') and (ext == analyser.ext or analyser.ext == 'any'):
+                analysers.append(analyser)
+        return analysers
 
 
     def _onAnalysisComplete(self, run: AnalysisRun, issues) -> None:
@@ -62,9 +72,3 @@ class StartAnalysisUseCase:
             
             # Сохраняем найденные issues
             self.uow.issues.add_many(issues)
-            
-            # Обновляем статус run через domain service
-            self.analysis_service.completeRun(run)
-            
-            # Сохраняем изменения в БД
-            self.uow.runs.update(run)
