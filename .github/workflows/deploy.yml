@@ -42,7 +42,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "client/dist/"
-          target: "/volume1/web/lint_slayer/"
+          target: "/volume1/web/lint_slayer/client"
           rm: true
           overwrite: true
 
@@ -56,7 +56,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "server/"
-          target: "/volume1/web/lint_slayer/"
+          target: "/volume1/web/lint_slayer/server/"
           rm: true
           overwrite: true
         
