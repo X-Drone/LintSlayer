@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_BACKEND_URL;
 const TOKEN_KEY = "auth_token";
 
 export function getToken(): string | null {
@@ -30,8 +30,7 @@ export async function request<T>(
 
   const res = await fetch(`${API_BASE}${url}`, {
     ...options,
-    headers,
-    credentials: "include",
+    headers
   });
 
   if (!res.ok) {
