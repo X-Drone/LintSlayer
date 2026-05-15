@@ -22,19 +22,21 @@ export async function request<T>(
     ...(options?.headers as Record<string, string> || {}),
   };
 
-  // Добавляем Authorization header если есть токен
   const token = getToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
   const res = await fetch(`${API_BASE}${url}`, {
+    credentials: 'include',
     ...options,
     headers
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
+    const error = await res.json().catch(() => ({ 
+      message: "An unknown error occurred" 
+    }));
     throw error;
   }
 

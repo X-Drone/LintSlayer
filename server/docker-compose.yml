@@ -6,20 +6,25 @@ services:
     ports:
       - "3003:3003"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/lint_slayer
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_DB}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=lint_slayer
+      - POSTGRES_USER=${DATABASE_USER:-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-postgres}
+      - POSTGRES_DB=${DATABASE_DB:-lint_slayer}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DATABASE_USER} -d $${DATABASE_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "10001:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
-
-volumes:
-  db_data:
+      - ../db_data:/var/lib/postgresql/data
+    restart: unless-stopped

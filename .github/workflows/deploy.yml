@@ -24,14 +24,12 @@ jobs:
         run: npm ci --legacy-peer-deps
         working-directory: ./client
       
-      - name: Setup .env for frontend
-        run: |
-          echo "VITE_BACKEND_URL=${{ secrets.BACKEND_URL }}" > ./client/.env.production
-          echo "VITE_AUTH_URL_CLIENT=${{ secrets.AUTH_URL_CLIENT }}" >> ./client/.env.production
-          echo "VITE_AUTH_URL_SERVER=${{ secrets.AUTH_URL_SERVER }}" >> ./client/.env.production
-
       - name: Build with Vite
         run: npm run build
+        env:
+          VITE_BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          VITE_AUTH_URL_CLIENT: ${{ secrets.AUTH_URL_CLIENT }}
+          VITE_AUTH_URL_SERVER: ${{ secrets.AUTH_URL_SERVER }}
         working-directory: ./client
 
       - name: Deploy frontend
@@ -45,19 +43,6 @@ jobs:
           target: "/volume1/web/lint_slayer/client"
           strip_components: 2
           rm: true
-          overwrite: true
-        
-      - name: Postdeploy apache setup for frontend
-        uses: appleboy/scp-action@v0.1.6
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "client/.htaccess"
-          target: "/volume1/web/lint_slayer/client"
-          strip_components: 2
-          rm: false
           overwrite: true
 
 
@@ -91,6 +76,7 @@ jobs:
           script: |
             cd /volume1/web/lint_slayer/server
             docker-compose down
+            docker-compose run --rm backend python -m alembic upgrade head
             docker-compose up -d --build
             echo "Backend started on port 3003"
 

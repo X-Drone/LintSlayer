@@ -13,13 +13,13 @@ app = FastAPI(debug=settings.debug)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Создать таблицы при старте (если нужно)
+# Try to create tables on startup, this will not do anything if the tables already exist
 Base.metadata.create_all(bind=db.engine)
 
-# Регистрация роутера
+# Include API routes
 app.include_router(router)
